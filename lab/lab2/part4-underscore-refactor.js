@@ -41,8 +41,34 @@
       schools[i].ZIPCODE = normalized_zip;
     }
 
+    //refactored clean data
+    schools = _.each(schools, function(clean) {
+      if (_.isString(clean.ZIPCODE)) {
+        spilt = clean.ZIPCODE.spilt(' ');
+        normalized_zip = parseInt(spilt[0]);
+        clean.ZIPCODE = normalized_zip;
+      }
+    }
+  );
+
     // Check out the use of typeof here — this was not a contrived example.
     // Someone actually messed up the data entry
+    schools = _.each(schools, function(grade) {
+      if (_.isNumber(grade.GRADE_ORG)) {
+        grade.HAS_KINDERGARTEN = grade.GRADE_LEVEL < 1;
+        grade.HAS_ELEMENTARY = 1 < grade.GRADE_LEVEL < 6;
+        grade.HAS_MIDDLE_SCHOOL = 5 < grade.GRADE_LEVEL < 9;
+        grade.HAS_HIGH_SCHOOL = 8 < grade.GRADE_LEVEL < 13;
+      } else {
+        grade.HAS_KINDERGARTEN = grade.GRADE_LEVEL.toUpperCase().indexOf('K') >= 0;
+        grade.HAS_ELEMENTARY = grade.GRADE_LEVEL.toUpperCase().indexOf('ELEM') >= 0;
+        grade.HAS_MIDDLE_SCHOOL = grade.GRADE_LEVEL.toUpperCase().indexOf('MID') >= 0;
+        grade.HAS_HIGH_SCHOOL = grade.GRADE_LEVEL.toUpperCase().indexOf('HIGH') >= 0;
+      }
+    }
+  );
+
+    //old code
     if (typeof schools[i].GRADE_ORG === 'number') {  // if number
       schools[i].HAS_KINDERGARTEN = schools[i].GRADE_LEVEL < 1;
       schools[i].HAS_ELEMENTARY = 1 < schools[i].GRADE_LEVEL < 6;
@@ -55,6 +81,7 @@
       schools[i].HAS_HIGH_SCHOOL = schools[i].GRADE_LEVEL.toUpperCase().indexOf('HIGH') >= 0;
     }
   }
+
 
   // filter data
   var filtered_data = [];
@@ -83,6 +110,30 @@
   console.log('Included:', filtered_data.length);
   console.log('Excluded:', filtered_out.length);
 
+  //refactored filter data
+  var filtered_data = _.filter(schools, function(filter) {
+    isOpen = filter.ACTIVE.toUpperCase() == 'OPEN';
+    isPublic = (filter.TYPE.toUpperCase() !== 'CHARTER' ||
+                filter.TYPE.toUpperCase() !== 'PRIVATE');
+    isSchool = (filter.HAS_KINDERGARTEN ||
+                filter.HAS_ELEMENTARY ||
+                filter.HAS_MIDDLE_SCHOOL ||
+                filter.HAS_HIGH_SCHOOL);
+    meetsMinimumEnrollment = filter.ENROLLMENT > minEnrollment;
+    meetsZipCondition = acceptedZipcodes.indexOf(filter.ZIPCODE) >= 0;
+    filter_condition = (isOpen &&
+                        isSchool &&
+                        meetsMinimumEnrollment &&
+                        !meetsZipCondition);
+    return filter_condition;
+  }
+);
+
+  var filtered_out = _.difference(schools, filtered_data);
+
+  console.log('Included:', filtered_data.length);
+  console.log('Excluded:', filtered_out.length);
+
   // main loop
   var color;
   for (var i = 0; i < filtered_data.length - 1; i++) {
@@ -108,3 +159,26 @@
   }
 
 })();
+
+  //refactored main loop
+  _.each(filtered_data, function(color) {
+    isOpen = color.ACTIVE.toUpperCase() == 'OPEN';
+    isPublic = (color.TYPE.toUpperCase() !== 'CHARTER' ||
+                color.TYPE.toUpperCase() !== 'PRIVATE');
+    meetsMinimumEnrollment = color.ENROLLMENT > minEnrollment;
+
+    if (color.HAS_HIGH_SCHOOL){
+      color = '#0000FF';
+    } else if (color.HAS_MIDDLE_SCHOOL) {
+      color = '#00FF00';
+    } else {
+      color = '##FF0000';
+    }
+
+    var pathOpts = {'radius': color.ENROLLMENT / 30,
+                    'fillcolor': color};
+    L.circleMarker([color.Y, color.X], pathOpts)
+      .bindPopup(color.FACILNAME_LABEL)
+      .addTo(map);
+  }
+);
